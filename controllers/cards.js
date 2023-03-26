@@ -42,7 +42,14 @@ const deleteCard = (req, res) => {
     return res.status(400).send({ message: 'Ошибка валидации запроса' })
   }
   Card.findByIdAndRemove(cardId)
-    .then(card => res.send({ card }))
+    .then(card => {
+      if (card) {
+        res.status(200).send(card)
+      }
+      else {
+        res.status(404).send({ message: 'Запрашиваемая карточка не найдена' })
+      }
+    })
     .catch(
       (err) => {
         const ERROR_CODE = 404;
