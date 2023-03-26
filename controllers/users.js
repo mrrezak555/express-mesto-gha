@@ -21,7 +21,7 @@ const getUser = (req, res) => {
     .then(user => res.status(200).send(user))
     .catch(
       (err) => {
-        const ERROR_CODE = 404;
+        const ERROR_CODE = 400;
         if (err.name === 'CastError'){
           return res.status(ERROR_CODE).send({ message: 'Запрашиваемый пользователь не найден' })
         }
