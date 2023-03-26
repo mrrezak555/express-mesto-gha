@@ -18,7 +18,14 @@ const getUser = (req, res) => {
   const { id } = req.params;
 
   return User.findById(id)
-    .then(user => res.status(200).send(user))
+    .then(user => {
+      if (user){
+        res.status(200).send(user)
+      }
+      else{
+        res.status(404).send({ message: 'Запрашиваемый пользователь не найден' })
+      }
+    })
     .catch(
       (err) => {
         const ERROR_CODE = 400;
@@ -51,8 +58,11 @@ const createUser = (req, res) => {
 const updateUser = (req, res) => {
   // обновим имя найденного по _id пользователя
   const owner = req.user._id
-  User.findByIdAndUpdate(owner, req.body)
-    .then(user => res.send({ user }))
+  User.findByIdAndUpdate(owner, req.body, {
+    new: true, // обработчик then получит на вход обновлённую запись
+    runValidators: true // данные будут валидированы перед изменением
+} )
+    .then(user => res.status(200).send(user))
     .catch(
       (err) => {
         const ERROR_CODE = 400;
