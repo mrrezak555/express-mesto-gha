@@ -50,9 +50,10 @@ const createUser = (req, res, next) => {
       email,
       password: hash,
     }))
-    // вернём записанные в базу данные
-    .then((user) => res.send({ user }))
-    // данные не записались, вернём ошибку
+    .then((user) => {
+      user.password = undefined;
+      res.send({ user });
+    })
     .catch(
       (err) => {
         next(err);
@@ -77,7 +78,10 @@ const updateUser = (req, res, next) => {
 
 const updateAvatar = (req, res, next) => {
   const owner = req.user._id;
-  User.findByIdAndUpdate(owner, req.body)
+  User.findByIdAndUpdate(owner, req.body.avatar, {
+    new: true, // обработчик then получит на вход обновлённую запись
+    runValidators: true, // данные будут валидированы перед изменением
+  })
     .then(() => res.send({ data: req.body }))
     .catch(
       (err) => {

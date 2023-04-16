@@ -1,7 +1,5 @@
 const express = require('express');
-//  const path = require('path');
 const mongoose = require('mongoose');
-//  const bodyParser = require('body-parser');
 const router = require('./routes/index');
 const { errors } = require('celebrate');
 
@@ -17,7 +15,7 @@ app.use(express.json());
 app.use(errors());
 app.use('/', router);
 app.use((err, req, res, next) => {
-  if (err.name === 'ValidationError' || err.name === 'Error' || err.name === 'CastError') {
+  if (err.name === 'ValidationError' || err.name === 'CastError') {
     // Обработка ошибки валидации
     return res.status(400).send({ message: err.message });
   } if (err.name === 'MongoError' && err.code === 11000) {

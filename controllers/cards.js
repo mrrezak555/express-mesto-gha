@@ -40,16 +40,15 @@ const deleteCard = (req, res) => {
       }
       const { owner } = card;
       if (owner.toString() === _id.toString()) {
-        Card.findByIdAndRemove(cardId)
+        return Card.findByIdAndRemove(cardId)
           .then((cardDel) => {
             if (cardDel) {
               return res.status(NO_ERROR).send(card);
             }
             return res.status(NOT_FOUND).send({ message: 'Запрашиваемая карточка не найдена' });
           });
-      } else {
-        return res.status(FORBIDDEN).send({ message: 'У вас нет прав на удаление этой карточки' });
       }
+      return res.status(FORBIDDEN).send({ message: 'У вас нет прав на удаление этой карточки' });
     })
     .catch((err) => {
       if (err.name === 'CastError') {
@@ -74,12 +73,7 @@ const likeCard = (req, res) => {
       }
     })
     .catch(
-      (err) => {
-        if (err.name === 'CastError') {
-          return res.status(NOT_FOUND).send({ message: 'Запрашиваемая карточка не найдена' });
-        }
-        return res.status(INTERNAL_ERROR).send({ message: 'Произошла ошибка' });
-      },
+      (err) => res.status(INTERNAL_ERROR).send({ message: 'Произошла ошибка' }),
     );
 };
 
