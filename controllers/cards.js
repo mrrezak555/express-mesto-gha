@@ -4,6 +4,7 @@ const NO_ERROR = 200;
 const ERROR_CODE = 400;
 const INTERNAL_ERROR = 500;
 const NOT_FOUND = 404;
+const FORBIDDEN = 403;
 
 const getCards = (req, res) => Card.find({}).populate(['owner', 'likes']).then((users) => res.status(NO_ERROR).send(users))
   .catch(
@@ -30,24 +31,34 @@ const createCard = (req, res) => {
 };
 
 const deleteCard = (req, res) => {
+  const { _id } = req.user;
   const { cardId } = req.params;
-
-  return Card.findByIdAndRemove(cardId)
+  Card.findById(cardId)
     .then((card) => {
-      if (card) {
-        return res.status(NO_ERROR).send(card);
+      if (!card) {
+        return res.status(NOT_FOUND).send({ message: 'Запрашиваемая карточка не найдена' });
       }
-      return res.status(NOT_FOUND).send({ message: 'Запрашиваемая карточка не найдена' });
+      const { owner } = card;
+      if (owner.toString() === _id.toString()) {
+        Card.findByIdAndRemove(cardId)
+          .then((cardDel) => {
+            if (cardDel) {
+              return res.status(NO_ERROR).send(card);
+            }
+            return res.status(NOT_FOUND).send({ message: 'Запрашиваемая карточка не найдена' });
+          });
+      } else {
+        return res.status(FORBIDDEN).send({ message: 'У вас нет прав на удаление этой карточки' });
+      }
     })
-    .catch(
-      (err) => {
-        if (err.name === 'CastError') {
-          return res.status(ERROR_CODE).send({ message: 'Запрашиваемая карточка не найдена' });
-        }
-        return res.status(INTERNAL_ERROR).send({ message: 'Произошла ошибка' });
-      },
-    );
+    .catch((err) => {
+      if (err.name === 'CastError') {
+        return res.status(NOT_FOUND).send({ message: 'Неверный формат идентификатора карточки' });
+      }
+      return res.status(FORBIDDEN).send({ message: 'Нельзя удалять чужие карточки' });
+    });
 };
+
 
 const likeCard = (req, res) => {
   Card.findByIdAndUpdate(
