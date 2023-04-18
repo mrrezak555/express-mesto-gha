@@ -28,7 +28,7 @@ const userValidationSchema = {
   }),
 };
 
-router.get('/me', celebrate(userValidationSchema), getCurrentUser);
+router.get('/me', getCurrentUser);
 router.get('/', celebrate(userValidationSchema), getUsers);
 router.get('/:id', celebrate(userValidationSchema), getUser);
 router.patch('/me', celebrate(userValidationSchema), updateUser);

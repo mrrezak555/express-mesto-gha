@@ -6,14 +6,22 @@ const INTERNAL_ERROR = 500;
 const NOT_FOUND = 404;
 const FORBIDDEN = 403;
 
-const getCards = (req, res) => Card.find({}).populate(['owner', 'likes']).then((users) => res.status(NO_ERROR).send(users))
+class CustomError extends Error {
+  constructor(message, statusCode) {
+    super(message);
+    this.statusCode = statusCode;
+    this.name = 'CustomError';
+  }
+}
+
+const getCards = (req, res, next) => Card.find({}).populate(['owner', 'likes']).then((users) => res.status(NO_ERROR).send(users))
   .catch(
-    () => {
-      res.status(INTERNAL_ERROR).send({ message: 'Произошла ошибка' });
+    (err) => {
+      next(err);
     },
   );
 
-const createCard = (req, res) => {
+const createCard = (req, res, next) => {
   const { name, link } = req.body;
   const ownerId = req.user._id;
   Card.create({ name, link, owner: ownerId })
@@ -22,21 +30,24 @@ const createCard = (req, res) => {
     // данные не записались, вернём ошибку
     .catch(
       (err) => {
-        if (err.name === 'ValidationError') {
-          return res.status(ERROR_CODE).send({ message: 'Ошибка валидации запроса' });
+        if (err.name === 'CastError') {
+          const error = new CustomError('Ошибка валидации запроса', ERROR_CODE);
+          next(error);
+        } else {
+          const error = new CustomError('Произошла ошибка', INTERNAL_ERROR);
+          next(error);
         }
-        return res.status(INTERNAL_ERROR).send({ message: 'Произошла ошибка' });
       },
     );
 };
 
-const deleteCard = (req, res) => {
+const deleteCard = (req, res, next) => {
   const { _id } = req.user;
   const { cardId } = req.params;
   Card.findById(cardId)
     .then((card) => {
       if (!card) {
-        return res.status(NOT_FOUND).send({ message: 'Запрашиваемая карточка не найдена' });
+        return next(new CustomError('Запрашиваемая карточка не найдена', NOT_FOUND));
       }
       const { owner } = card;
       if (owner.toString() === _id.toString()) {
@@ -45,21 +56,21 @@ const deleteCard = (req, res) => {
             if (cardDel) {
               return res.status(NO_ERROR).send(card);
             }
-            return res.status(NOT_FOUND).send({ message: 'Запрашиваемая карточка не найдена' });
+            return next(new CustomError('Запрашиваемая карточка не найдена', NOT_FOUND));
           });
       }
-      return res.status(FORBIDDEN).send({ message: 'У вас нет прав на удаление этой карточки' });
+      return next(new CustomError('У вас нет прав на удаление этой карточки', FORBIDDEN));
     })
     .catch((err) => {
       if (err.name === 'CastError') {
-        return res.status(NOT_FOUND).send({ message: 'Неверный формат идентификатора карточки' });
+        const error = new CustomError('Неверный формат идентификатора карточки', NOT_FOUND);
+        return next(error);
       }
-      return res.status(FORBIDDEN).send({ message: 'Нельзя удалять чужие карточки' });
+      return next(err);
     });
 };
 
-
-const likeCard = (req, res) => {
+const likeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $addToSet: { likes: req.user._id } }, // добавить _id в массив, если его там нет
@@ -69,15 +80,15 @@ const likeCard = (req, res) => {
       if (card) {
         res.status(NO_ERROR).send(card);
       } else {
-        res.status(NOT_FOUND).send({ message: 'Запрашиваемая карточка не найдена' });
+        next(new CustomError('Запрашиваемая карточка не найдена', NOT_FOUND));
       }
     })
     .catch(
-      (err) => res.status(INTERNAL_ERROR).send({ message: 'Произошла ошибка' }),
+      (err) => next(err),
     );
 };
 
-const dislikeCard = (req, res) => {
+const dislikeCard = (req, res, next) => {
   Card.findByIdAndUpdate(
     req.params.cardId,
     { $pull: { likes: req.user._id } }, // убрать _id из массива
@@ -88,16 +99,16 @@ const dislikeCard = (req, res) => {
         if (card) {
           res.status(NO_ERROR).send(card);
         } else {
-          res.status(NOT_FOUND).send({ message: 'Запрашиваемая карточка не найдена' });
+          next(new CustomError('Запрашиваемая карточка не найдена', NOT_FOUND));
         }
       },
     )
     .catch(
       (err) => {
         if (err.name === 'CastError') {
-          return res.status(NOT_FOUND).send({ message: 'Запрашиваемая карточка не найдена' });
+          return next(new CustomError('Запрашиваемая карточка не найдена', NOT_FOUND));
         }
-        return res.status(INTERNAL_ERROR).send({ message: 'Произошла ошибка' });
+        return next(err);
       },
     );
 };

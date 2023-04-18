@@ -7,29 +7,41 @@ const ERROR_CODE = 400;
 const INTERNAL_ERROR = 500;
 const NOT_FOUND = 404;
 
-const getUsers = (req, res) => User.find({}).then((users) => res.status(NO_ERROR).send(users))
+class CustomError extends Error {
+  constructor(message, statusCode) {
+    super(message);
+    this.statusCode = statusCode;
+    this.name = 'CustomError';
+  }
+}
+
+const getUsers = (req, res, next) => User.find({}).then((users) => res.status(NO_ERROR).send(users))
   .catch(
-    () => {
-      res.status(INTERNAL_ERROR).send({ message: 'Произошла ошибка' });
+    (err) => {
+      next(err);
     },
   );
 
-const getUser = (req, res) => {
+const getUser = (req, res, next) => {
   const { id } = req.params;
   return User.findById(id)
     .then((user) => {
       if (user) {
         res.status(NO_ERROR).send(user);
       } else {
-        res.status(NOT_FOUND).send({ message: 'Запрашиваемый пользователь не найден' });
+        const error = new CustomError('Запрашиваемый пользователь не найден', NOT_FOUND);
+        next(error);
       }
     })
     .catch(
       (err) => {
         if (err.name === 'CastError') {
-          return res.status(ERROR_CODE).send({ message: 'Ошибка валидации запроса' });
+          const error = new CustomError('Ошибка валидации запроса', ERROR_CODE);
+          next(error);
+        } else {
+          const error = new CustomError('Произошла ошибка', INTERNAL_ERROR);
+          next(error);
         }
-        return res.status(INTERNAL_ERROR).send({ message: 'Произошла ошибка' });
       },
     );
 };

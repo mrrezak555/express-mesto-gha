@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const { router } = require('./routes/index');
 const { errors } = require('celebrate');
 
+const INTERNAL_ERROR = 500;
+
 const { PORT = 3000 } = process.env;
 
 mongoose.connect('mongodb://localhost:27017/mestodb', {
@@ -24,7 +26,8 @@ app.use((err, req, res, next) => {
   }
   // Обработка других ошибок
   console.error(err);
-  return res.status(500).send({ message: 'Произошла ошибка на сервере' });
+  const { statusCode = INTERNAL_ERROR, message } = err;
+  res.status(statusCode).send({ message });
 });
 
 app.listen(PORT, () => {
