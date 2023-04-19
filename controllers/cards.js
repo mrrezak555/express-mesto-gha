@@ -1,18 +1,9 @@
 const Card = require('../models/card');
+const NotFoundError = require('../errors/NotFoundError');
+const ValidationError = require('../errors/ValidationError');
+const ForbiddenError = require('../errors/ForbiddenError');
 
 const NO_ERROR = 200;
-const ERROR_CODE = 400;
-const INTERNAL_ERROR = 500;
-const NOT_FOUND = 404;
-const FORBIDDEN = 403;
-
-class CustomError extends Error {
-  constructor(message, statusCode) {
-    super(message);
-    this.statusCode = statusCode;
-    this.name = 'CustomError';
-  }
-}
 
 const getCards = (req, res, next) => Card.find({}).populate(['owner', 'likes']).then((users) => res.status(NO_ERROR).send(users))
   .catch(
@@ -31,11 +22,9 @@ const createCard = (req, res, next) => {
     .catch(
       (err) => {
         if (err.name === 'CastError') {
-          const error = new CustomError('Ошибка валидации запроса', ERROR_CODE);
-          next(error);
+          next(new ValidationError('Ошибка валидации запроса'));
         } else {
-          const error = new CustomError('Произошла ошибка', INTERNAL_ERROR);
-          next(error);
+          next(err);
         }
       },
     );
@@ -47,7 +36,7 @@ const deleteCard = (req, res, next) => {
   Card.findById(cardId)
     .then((card) => {
       if (!card) {
-        return next(new CustomError('Запрашиваемая карточка не найдена', NOT_FOUND));
+        return next(new NotFoundError('Запрашиваемая карточка не найдена'));
       }
       const { owner } = card;
       if (owner.toString() === _id.toString()) {
@@ -56,14 +45,14 @@ const deleteCard = (req, res, next) => {
             if (cardDel) {
               return res.status(NO_ERROR).send(card);
             }
-            return next(new CustomError('Запрашиваемая карточка не найдена', NOT_FOUND));
+            return next(new NotFoundError('Запрашиваемая карточка не найдена'));
           });
       }
-      return next(new CustomError('У вас нет прав на удаление этой карточки', FORBIDDEN));
+      return next(new ForbiddenError('У вас нет прав на удаление этой карточки'));
     })
     .catch((err) => {
       if (err.name === 'CastError') {
-        const error = new CustomError('Неверный формат идентификатора карточки', NOT_FOUND);
+        const error = new NotFoundError('Неверный формат идентификатора карточки');
         return next(error);
       }
       return next(err);
@@ -80,7 +69,7 @@ const likeCard = (req, res, next) => {
       if (card) {
         res.status(NO_ERROR).send(card);
       } else {
-        next(new CustomError('Запрашиваемая карточка не найдена', NOT_FOUND));
+        next(new NotFoundError('Запрашиваемая карточка не найдена'));
       }
     })
     .catch(
@@ -99,14 +88,14 @@ const dislikeCard = (req, res, next) => {
         if (card) {
           res.status(NO_ERROR).send(card);
         } else {
-          next(new CustomError('Запрашиваемая карточка не найдена', NOT_FOUND));
+          next(new NotFoundError('Запрашиваемая карточка не найдена'));
         }
       },
     )
     .catch(
       (err) => {
         if (err.name === 'CastError') {
-          return next(new CustomError('Запрашиваемая карточка не найдена', NOT_FOUND));
+          return next(new NotFoundError('Запрашиваемая карточка не найдена'));
         }
         return next(err);
       },

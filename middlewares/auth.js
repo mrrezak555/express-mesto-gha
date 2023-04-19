@@ -1,12 +1,5 @@
 const jwt = require('jsonwebtoken');
-
-class AuthorizationError extends Error {
-  constructor(message) {
-    super(message);
-    this.name = 'AuthorizationError';
-    this.statusCode = 401;
-  }
-}
+const AuthorizationError = require('../errors/AuthorizationError');
 
 module.exports = (req, res, next) => {
   const { authorization } = req.headers;

@@ -17,16 +17,11 @@ app.use(express.json());
 app.use(errors());
 app.use('/', router);
 app.use((err, req, res, next) => {
-  if (err.name === 'ValidationError' || err.name === 'CastError') {
-    // Обработка ошибки валидации
-    return res.status(400).send({ message: err.message });
-  } if (err.name === 'MongoError' && err.code === 11000) {
-    // Обработка ошибки дубликата в базе данных
-    return res.status(409).send({ message: 'Такой email уже существует' });
-  }
-  // Обработка других ошибок
   console.error(err);
-  const { statusCode = INTERNAL_ERROR, message } = err;
+  const { statusCode = INTERNAL_ERROR, message = 'на сервере произошла ошибка' } = err;
+  if (statusCode === INTERNAL_ERROR) {
+    return res.status(INTERNAL_ERROR).send({ message: 'на сервере произошла ошибка' });
+  }
   res.status(statusCode).send({ message });
 });
 

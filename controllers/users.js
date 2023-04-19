@@ -1,19 +1,11 @@
 const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const User = require('../models/user');
+const NotFoundError = require('../errors/NotFoundError');
+const ValidationError = require('../errors/ValidationError');
+const EmailError = require('../errors/EmailError');
 
 const NO_ERROR = 200;
-const ERROR_CODE = 400;
-const INTERNAL_ERROR = 500;
-const NOT_FOUND = 404;
-
-class CustomError extends Error {
-  constructor(message, statusCode) {
-    super(message);
-    this.statusCode = statusCode;
-    this.name = 'CustomError';
-  }
-}
 
 const getUsers = (req, res, next) => User.find({}).then((users) => res.status(NO_ERROR).send(users))
   .catch(
@@ -29,18 +21,15 @@ const getUser = (req, res, next) => {
       if (user) {
         res.status(NO_ERROR).send(user);
       } else {
-        const error = new CustomError('Запрашиваемый пользователь не найден', NOT_FOUND);
-        next(error);
+        next(new NotFoundError('Запрашиваемый пользователь не найден'));
       }
     })
     .catch(
       (err) => {
         if (err.name === 'CastError') {
-          const error = new CustomError('Ошибка валидации запроса', ERROR_CODE);
-          next(error);
+          next(new ValidationError('Ошибка валидации запроса'));
         } else {
-          const error = new CustomError('Произошла ошибка', INTERNAL_ERROR);
-          next(error);
+          next(err);
         }
       },
     );
@@ -68,6 +57,10 @@ const createUser = (req, res, next) => {
     })
     .catch(
       (err) => {
+        if (err.code === 11000) {
+          next(new EmailError('Пользователь с таким email уже существует'));
+          return;
+        }
         next(err);
       },
     );
