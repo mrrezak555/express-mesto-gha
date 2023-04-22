@@ -18,7 +18,7 @@ app.use(errors());
 app.use('/', router);
 app.use((err, req, res, next) => {
   console.error(err);
-  const { statusCode = INTERNAL_ERROR, message = 'на сервере произошла ошибка' } = err;
+  const { statusCode = INTERNAL_ERROR, message } = err;
   if (statusCode === INTERNAL_ERROR) {
     return res.status(INTERNAL_ERROR).send({ message: 'на сервере произошла ошибка' });
   }

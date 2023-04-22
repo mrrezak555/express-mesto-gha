@@ -21,7 +21,7 @@ const createCard = (req, res, next) => {
     // данные не записались, вернём ошибку
     .catch(
       (err) => {
-        if (err.name === 'CastError') {
+        if (err.name === 'ValidationError') {
           next(new ValidationError('Ошибка валидации запроса'));
         } else {
           next(err);
@@ -33,6 +33,7 @@ const createCard = (req, res, next) => {
 const deleteCard = (req, res, next) => {
   const { _id } = req.user;
   const { cardId } = req.params;
+
   Card.findById(cardId)
     .then((card) => {
       if (!card) {
@@ -41,18 +42,13 @@ const deleteCard = (req, res, next) => {
       const { owner } = card;
       if (owner.toString() === _id.toString()) {
         return Card.findByIdAndRemove(cardId)
-          .then((cardDel) => {
-            if (cardDel) {
-              return res.status(NO_ERROR).send(card);
-            }
-            return next(new NotFoundError('Запрашиваемая карточка не найдена'));
-          });
+          .then(() => res.status(NO_ERROR).send(card));
       }
       return next(new ForbiddenError('У вас нет прав на удаление этой карточки'));
     })
     .catch((err) => {
       if (err.name === 'CastError') {
-        const error = new NotFoundError('Неверный формат идентификатора карточки');
+        const error = new ValidationError('Неверный формат идентификатора карточки');
         return next(error);
       }
       return next(err);
@@ -72,9 +68,13 @@ const likeCard = (req, res, next) => {
         next(new NotFoundError('Запрашиваемая карточка не найдена'));
       }
     })
-    .catch(
-      (err) => next(err),
-    );
+    .catch((err) => {
+      if (err.name === 'CastError') {
+        const error = new ValidationError('Неверный формат идентификатора карточки');
+        return next(error);
+      }
+      return next(err);
+    });
 };
 
 const dislikeCard = (req, res, next) => {
@@ -92,14 +92,13 @@ const dislikeCard = (req, res, next) => {
         }
       },
     )
-    .catch(
-      (err) => {
-        if (err.name === 'CastError') {
-          return next(new NotFoundError('Запрашиваемая карточка не найдена'));
-        }
-        return next(err);
-      },
-    );
+    .catch((err) => {
+      if (err.name === 'CastError') {
+        const error = new ValidationError('Неверный формат идентификатора карточки');
+        return next(error);
+      }
+      return next(err);
+    });
 };
 
 module.exports = {

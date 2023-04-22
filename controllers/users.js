@@ -4,6 +4,7 @@ const User = require('../models/user');
 const NotFoundError = require('../errors/NotFoundError');
 const ValidationError = require('../errors/ValidationError');
 const EmailError = require('../errors/EmailError');
+const UnauthorizedError = require('../errors/UnauthorizedError');
 
 const NO_ERROR = 200;
 
@@ -57,7 +58,9 @@ const createUser = (req, res, next) => {
     })
     .catch(
       (err) => {
-        if (err.code === 11000) {
+        if (err.name === 'ValidationError') {
+          next(new ValidationError('Ошибка валидации запроса'));
+        } if (err.code === 11000) {
           next(new EmailError('Пользователь с таким email уже существует'));
           return;
         }
@@ -73,12 +76,15 @@ const updateUser = (req, res, next) => {
     new: true, // обработчик then получит на вход обновлённую запись
     runValidators: true, // данные будут валидированы перед изменением
   })
+    .orFail(() => new NotFoundError('Запрашиваемый пользователь не найден'))
     .then((user) => res.status(NO_ERROR).send(user))
-    .catch(
-      (err) => {
+    .catch((err) => {
+      if (err.name === 'ValidationError') {
+        next(new ValidationError('Невалидный идентификатор пользователя.'));
+      } else {
         next(err);
-      },
-    );
+      }
+    });
 };
 
 const updateAvatar = (req, res, next) => {
@@ -87,12 +93,15 @@ const updateAvatar = (req, res, next) => {
     new: true, // обработчик then получит на вход обновлённую запись
     runValidators: true, // данные будут валидированы перед изменением
   })
+    .orFail(() => new NotFoundError('Запрашиваемый пользователь не найден'))
     .then(() => res.send({ data: req.body }))
-    .catch(
-      (err) => {
+    .catch((err) => {
+      if (err.name === 'ValidationError') {
+        next(new ValidationError('Невалидный идентификатор пользователя.'));
+      } else {
         next(err);
-      },
-    );
+      }
+    });
 };
 
 const login = (req, res, next) => {
@@ -103,13 +112,13 @@ const login = (req, res, next) => {
   User.find({ email }).select('+password')
     .then((userData) => {
       if (!userData[0]) {
-        return next(new Error('Неправильные почта или пароль'));
+        return next(new UnauthorizedError('Неправильные почта или пароль'));
       }
       bcrypt.compare(password, userData[0].password)
         .then((matched) => {
           if (!matched) {
             // хеши не совпали — отклоняем промис
-            return next(new Error('Что-то не так с почтой или паролем'));
+            return next(new UnauthorizedError('Что-то не так с почтой или паролем'));
           }
           const jwtToken = jwt.sign({ _id: userData[0]._id }, 'super-strong-secret', { expiresIn: '7d' });
           // аутентификация успешна
@@ -129,7 +138,11 @@ const getCurrentUser = (req, res, next) => {
   } = req.user;
   User.findById({ _id })
     .then((userData) => {
-      res.status(200).send({ userData });
+      if (userData) {
+        res.status(200).send({ userData });
+      } else {
+        next(new NotFoundError('Запрашиваемый пользователь не найден'));
+      }
     })
     .catch(
       (err) => {
